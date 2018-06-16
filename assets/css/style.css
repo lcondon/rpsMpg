@@ -1,0 +1,24 @@
+.container {
+    margin-bottom: 40px;
+}
+
+.cards {
+    height: 200px;
+}
+
+#msgC {
+    margin: 0;
+    padding: 10;
+    height: 300px;
+}
+
+#subButton {
+    width: 100%;
+}
+
+#msgC > p {
+    margin-bottom: 0;
+}
+
+
+
