@@ -40,21 +40,13 @@ firebase.initializeApp(config);
 
 var database = firebase.database();
 
-database.ref().set({
-    users: {},
-    gameRules: {
-        turn: 0,
-        gameStarted: false
-    }
-})
-
 
 var gameStarted = false;
 var hasPlayer1 = false;
 var hasPlayer2 = false;
 var playerNumber = 0;
 var initialTurn = 1;
-var turn;
+var turn = 1;
 var firstPlayerChoice;
 var secondPlayerChoice;
 
@@ -70,7 +62,7 @@ $("#userButton").on("click", function (event) {
     event.preventDefault();
     var uName = $("#userName").val().trim();
     if (uName !== "") {
-        if (hasPlayer1 === false) {
+        if (hasPlayer1 === false && hasPlayer2 === false) {
             var playerD = database.ref('users/' + "p1");
             playerD.set({
                 name: uName,
@@ -78,14 +70,12 @@ $("#userButton").on("click", function (event) {
                 losses: 0,
                 wins: 0
             });
-            console.log();
             playerNumber = 1;
             $("#nameSubmit").remove();
             $("#welcomeMsg").text("Hi " + uName + "! You are Player 1");
-
-            // database.ref("users/p1").update({
-            //     choice: "rock"
-            // })
+            database.ref("gameRules/").update({
+                turn: 1
+            });
         } else if (hasPlayer1 === true && hasPlayer2 === false) {
             var playerD = database.ref('users/' + "p2");
             playerD.set({
@@ -97,81 +87,112 @@ $("#userButton").on("click", function (event) {
             playerNumber = 2;
             $("#nameSubmit").remove();
             $("#welcomeMsg").text("Hi " + uName + "! You are Player 2");
+            database.ref("gameRules/").update({
+                turn: 1
+            });
+        } else if (hasPlayer1 === false && hasPlayer2 === true) {
+            var playerD = database.ref('users/' + "p1");
+            playerD.set({
+                name: uName,
+                choice: "",
+                losses: 0,
+                wins: 0
+            });
+            console.log();
+            playerNumber = 1;
+            $("#nameSubmit").remove();
+            $("#welcomeMsg").text("Hi " + uName + "! You are Player 1");
+            database.ref("gameRules/").update({
+                turn: 1
+            });
+        } else {
+            playerNumber = 0;
         }
     }
 })
 
 database.ref().on("value", function (snapshot) {
     var playerCount = snapshot.child("users");
-    console.log(playerCount.numChildren());
-    if (playerCount.numChildren() == 1) {
-        console.log(snapshot.child("users").child("p1").child("name").val());
-        $("#P1").text(snapshot.child("users").child("p1").child("name").val());
-        hasPlayer1 = true;
-    } else if (playerCount.numChildren() == 2) {
-        if (gameStarted === false) {
-            $("#P2").text(snapshot.child("users").child("p2").child("name").val());
-            hasPlayer2 = true;
-            gameStarted = true;
-            database.ref("gameRules/").update({
-                gameStarted: true,
-                turn: 1
-            });
+    if (playerCount.numChildren() === 0) {
+        database.ref("gameRules/").update({
+            gameStarted: false,
+            turn: 0
+        });
+    } else if (playerCount.numChildren() === 1) {
+        for (var key in playerCount.val()) {
+            console.log(key);
+            if (key == "p1") {
+                $("#P1").text(snapshot.child("users").child("p1").child("name").val());
+                hasPlayer1 = true;
+            } else if (key == "p2") {
+                hasPlayer2 = true;
+                $("#P2").text(snapshot.child("users").child("p2").child("name").val());
+            }
         }
+        console.log(snapshot.child("users").child("p1").child("name").val());
+    } else if (playerCount.numChildren() === 2) {
+        $("#P1").text(snapshot.child("users").child("p1").child("name").val());
+        $("#P2").text(snapshot.child("users").child("p2").child("name").val());
+        hasPlayer1 = true;
+        hasPlayer2 = true;
+        $("#nameSubmit").remove();
+        database.ref("gameRules/").update({
+            gameStarted: true
+        });
     }
 })
 
+// var ref = firebase.database().ref("users");
+// ref.onDisconnect().remove();
 
-
-var gameData = database.ref("/gameRules/turn");
+var gameData = database.ref("/gameRules");
 gameData.on("value", function (snapshot) {
+    gameStarted = snapshot.child("gameStarted").val();
     if (gameStarted === true && playerNumber !== 0) {
         if (playerNumber === 1) {
-            if (snapshot.val() === 1) {
+            if (snapshot.child("turn").val() === 1) {
                 $("#turnMsg").text("It's your turn!");
                 $("#p1Card").append(p1b1).append(p1b2).append(p1b3);
-            } else if (snapshot.val() === 2) {
+            } else if (snapshot.child("turn").val() === 2) {
                 $("#turnMsg").text("Waiting for Player 2 to choose");
-            } else if (snapshot.val() === 3) { 
+            } else if (snapshot.child("turn").val() === 3) {
 
             }
         } else if (playerNumber === 2) {
-            if (snapshot.val() === 2) {
+            if (snapshot.child("turn").val() === 2) {
                 $("#turnMsg").text("It's your turn!");
                 $("#p2Card").append(p2b1).append(p2b2).append(p2b3);
-            } else if (snapshot.val() === 1) {
-               
-            } if (snapshot.val() === 3) { 
+            } else if (snapshot.child("turn").val() === 1) {
+
+            } if (snapshot.child("turn").val() === 3) {
 
             }
         }
-        
-        turn = snapshot.val();
-        
+        turn = snapshot.child("turn").val();
     }
 
 })
 
-database.ref("/users/p2/choice").on("value", function(snapshot) {
-
-})
-
-$(document).on("click", ".p1-choices", function (event) {
+$(document).on("click", ".p1-choices", function () {
     var p1Choice = $(this).attr("data-choice");
     database.ref("/users/p1/choice").set(p1Choice);
     turn++;
-    database.ref("/gameRules/turn").set(turn);
-    $(".p1-choices").remove();
+    database.ref("/gameRules").update({
+        turn: turn
+    });
+    $("#p1Card").empty();
     var choice = $("<h1>").text(p1Choice);
     $("#p1Card").append(choice);
 });
 
-$(document).on("click", ".p2-choices", function (event) {
+$(document).on("click", ".p2-choices", function () {
     var p2Choice = $(this).attr("data-choice");
     database.ref("/users/p2/choice").set(p2Choice);
     turn++;
-    database.ref("/gameRules/turn").set(turn);
-    $(".p2-choices").remove();
+    database.ref("/gameRules").update({
+        turn: turn
+    });
+    $("#p2Card").empty();
     var choice = $("<h1>").text(p2Choice);
     $("#p2Card").append(choice);
 });

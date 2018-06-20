@@ -3,7 +3,7 @@
 }
 
 .cards {
-    height: 200px;
+    height: 260px;
 }
 
 #msgC {
@@ -18,6 +18,11 @@
 
 #msgC > p {
     margin-bottom: 0;
+}
+
+.card > p {
+    margin-bottom: 0;
+    margin-top: 0;
 }
 
 #turnMsg,
