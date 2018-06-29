@@ -23,11 +23,15 @@ $("#subButton").on("click", function (event) {
     }
 })
 
+
 var chatBox = database.ref("chats/");
 chatBox.on("child_added", function (snapshot) {
     console.log(snapshot.val());
-    var chat = $("<p>").html(snapshot.val().player + snapshot.val().chat + "<br>")
+    var chat = $("<h4>").html(snapshot.val().player + snapshot.val().chat + "<br>").addClass("chatMsg");
     $("#msgC").append(chat);
+    $('#msgC').animate({
+        scrollTop: $('.jumbotron .chatMsg:last-child').position().top
+    }, 'slow');
 })
 
 
@@ -57,8 +61,8 @@ $("#userButton").on("click", function (event) {
     event.preventDefault();
     var uName = $("#userName").val().trim();
     if (uName !== "") {
-        if (hasPlayer1 === false && hasPlayer2 === false) {
-            var playerD = database.ref('users/' + "p1");
+        if (hasPlayer1 === false) {
+            var playerD = database.ref('users/1');
             playerD.set({
                 name: uName,
                 choice: "",
@@ -69,8 +73,9 @@ $("#userButton").on("click", function (event) {
             playerNumber = 1;
             $("#nameSubmit").remove();
             $("#welcomeMsg").text("Hi " + uName + "! You are Player 1");
+            database.ref("/users/1").onDisconnect().remove();
         } else if (hasPlayer1 === true && hasPlayer2 === false) {
-            var playerD = database.ref('users/' + "p2");
+            var playerD = database.ref('users/2');
             playerD.set({
                 name: uName,
                 choice: "",
@@ -81,19 +86,7 @@ $("#userButton").on("click", function (event) {
             playerNumber = 2;
             $("#nameSubmit").remove();
             $("#welcomeMsg").text("Hi " + uName + "! You are Player 2");
-        } else if (hasPlayer1 === false && hasPlayer2 === true) {
-            var playerD = database.ref('users/' + "p1");
-            playerD.set({
-                name: uName,
-                choice: "",
-                losses: 0,
-                wins: 0
-            });
-            console.log();
-            name = uName;
-            playerNumber = 1;
-            $("#nameSubmit").remove();
-            $("#welcomeMsg").text("Hi " + uName + "! You are Player 1");
+            database.ref("/users/2").onDisconnect().remove()
         } else {
             playerNumber = 0;
         }
@@ -111,22 +104,22 @@ userData.on("value", function (snapshot) {
     } else if (playerCount === 1) {
         for (var key in snapshot.val()) {
             console.log(key);
-            if (key == "p1") {
-                $("#P1").text(snapshot.child("p1").child("name").val());
+            if (key == "1") {
+                $("#P1").text(snapshot.child("1").child("name").val());
                 hasPlayer1 = true;
-            } else if (key == "p2") {
+            } else if (key == "2") {
                 hasPlayer2 = true;
-                $("#P2").text(snapshot.child("p2").child("name").val());
+                $("#P2").text(snapshot.child("2").child("name").val());
             }
         }
-        console.log(snapshot.child("p1").child("name").val());
+        console.log(snapshot.child("1").child("name").val());
     } else if (playerCount === 2) {
-        $("#P1").text(snapshot.child("p1").child("name").val());
-        $("#P2").text(snapshot.child("p2").child("name").val());
+        $("#P1").text(snapshot.child("1").child("name").val());
+        $("#P2").text(snapshot.child("2").child("name").val());
         hasPlayer1 = true;
         hasPlayer2 = true;
-        p1Name = snapshot.child("p1").child("name").val();
-        p2Name = snapshot.child("p2").child("name").val();
+        p1Name = snapshot.child("1").child("name").val();
+        p2Name = snapshot.child("2").child("name").val();
         $("#nameSubmit").remove();
         database.ref("gameRules/").update({
             gameStarted: true
@@ -134,15 +127,29 @@ userData.on("value", function (snapshot) {
     }
 })
 
-database.ref("chats").onDisconnect().remove();
 
-var ref = database.ref("users");
-ref.onDisconnect().remove();
-
-var ref1 = database.ref("gameRules");
-ref1.onDisconnect().update({
-    gameStarted: false,
-    turn: 0
+database.ref("/users/").on("child_removed", function(childSnap) {
+    console.log(childSnap.key);
+    database.ref("gameRules").update({
+        gameStarted: false,
+        turn: 0
+    });
+    var playerGone = childSnap.key;
+    if (playerGone == 1) {
+        $("#P1").text("Waiting for Player 1");
+        $("#p1Card").empty();
+        $("#p2Card").empty();
+        $("#p1Wins").text("0");
+        $("#p1Losses").text("0");
+        $("#results").empty();
+    } else if (playerGone == 2) {
+        $("#P2").text("Waiting for Player 2");
+        $("#p1Card").empty();
+        $("#p2Card").empty();
+        $("#p2Wins").text("0");
+        $("#p2Losses").text("0");
+        $("#results").empty();
+    }
 })
 
 var gameStart = database.ref("/gameRules/gameStarted");
@@ -160,28 +167,28 @@ var gameData = database.ref("/gameRules/turn");
 gameData.on("value", function (snapshot) {
     turn = snapshot.val();
     console.log(snapshot.val())
-    if (gameStarted === true && playerNumber !== 0) {
+    if (gameStarted == true && playerNumber != 0) {
         if (playerNumber === 1) {
-            if (snapshot.val() === 1) {
+            if (snapshot.val() == 1) {
                 $("#p1Card").empty();
                 $("#p2Card").empty();
                 $("#results").empty();
                 $("#turnMsg").text("It's your turn!");
                 $("#p1Card").append(p1b1).append(p1b2).append(p1b3);
-            } else if (snapshot.val() === 2) {
+            } else if (snapshot.val() == 2) {
                 $("#turnMsg").text("Waiting for Player 2 to choose");
-            } else if (snapshot.val() === 3) {
+            } else if (snapshot.val() == 3) {
                 setTimeout(reset, 5000)
             }
         } else if (playerNumber === 2) {
-            if (snapshot.val() === 2) {
+            if (snapshot.val() == 2) {
                 $("#turnMsg").text("It's your turn!");
                 $("#p2Card").append(p2b1).append(p2b2).append(p2b3);
-            } else if (snapshot.val() === 1) {
+            } else if (snapshot.val() == 1) {
                 $("#p1Card").empty();
                 $("#p2Card").empty();
                 $("#results").empty();
-            } else if (snapshot.val() === 3) {
+            } else if (snapshot.val() == 3) {
                 setTimeout(reset, 5000)
             }
         }
@@ -196,12 +203,12 @@ function reset() {
     });
 }
 
-database.ref("users/p1/choice").on("value", function (snapshot) {
+database.ref("users/1/choice").on("value", function (snapshot) {
     console.log(snapshot.val());
     player1Choice = snapshot.val();
 })
 
-database.ref("users/p2/choice").on("value", function (snapshot) {
+database.ref("users/2/choice").on("value", function (snapshot) {
     console.log(snapshot.val());
     player2Choice = snapshot.val();
     $("#turnMsg").empty();
@@ -220,7 +227,7 @@ database.ref("users/p2/choice").on("value", function (snapshot) {
             p2Wins++;
         }
         if (playerNumber === 1) {
-            database.ref("users/p1").update({
+            database.ref("users/1").update({
                 wins: p1Wins,
                 losses: p2Wins
             })
@@ -230,7 +237,7 @@ database.ref("users/p2/choice").on("value", function (snapshot) {
             $("#p2Losses").text(p1Wins);
             $("#p2Card").append($("<h1>").text(player2Choice));
         } else if (playerNumber === 2) {
-            database.ref("users/p2").update({
+            database.ref("users/2").update({
                 wins: p2Wins,
                 losses: p1Wins
             })
@@ -254,7 +261,7 @@ database.ref("users/p2/choice").on("value", function (snapshot) {
             p1Wins++;
         }
         if (playerNumber === 1) {
-            database.ref("users/p1").update({
+            database.ref("users/1").update({
                 wins: p1Wins,
                 losses: p2Wins
             })
@@ -264,7 +271,7 @@ database.ref("users/p2/choice").on("value", function (snapshot) {
             $("#p2Losses").text(p1Wins);
             $("#p2Card").append($("<h1>").text(player2Choice));
         } else if (playerNumber === 2) {
-            database.ref("users/p2").update({
+            database.ref("users/2").update({
                 wins: p2Wins,
                 losses: p1Wins
             })
@@ -288,7 +295,7 @@ database.ref("users/p2/choice").on("value", function (snapshot) {
             $("#results").append(result);
         }
         if (playerNumber === 1) {
-            database.ref("users/p1").update({
+            database.ref("users/1").update({
                 wins: p1Wins,
                 losses: p2Wins
             })
@@ -298,7 +305,7 @@ database.ref("users/p2/choice").on("value", function (snapshot) {
             $("#p2Losses").text(p1Wins);
             $("#p2Card").append($("<h1>").text(player2Choice));
         } else if (playerNumber === 2) {
-            database.ref("users/p2").update({
+            database.ref("users/2").update({
                 wins: p2Wins,
                 losses: p1Wins
             })
@@ -313,7 +320,7 @@ database.ref("users/p2/choice").on("value", function (snapshot) {
 
 $(document).on("click", ".p1-choices", function () {
     var p1Choice = $(this).attr("data-choice");
-    database.ref("/users/p1/choice").set(p1Choice);
+    database.ref("/users/1/choice").set(p1Choice);
     turn++;
     database.ref("/gameRules").update({
         turn: turn
@@ -325,8 +332,8 @@ $(document).on("click", ".p1-choices", function () {
 
 $(document).on("click", ".p2-choices", function () {
     var p2Choice = $(this).attr("data-choice");
-    database.ref("/users/p2/choice").set("");
-    database.ref("/users/p2/choice").set(p2Choice);
+    database.ref("/users/2/choice").set("");
+    database.ref("/users/2/choice").set(p2Choice);
     turn++;
     database.ref("/gameRules").update({
         turn: turn
